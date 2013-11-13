@@ -1,0 +1,93 @@
+#!/usr/bin/perl -w
+
+# Specify site code
+
+my $site_code = "KPDK" ;
+my $threshold_temp = 17 ;
+
+my $fold_status = "";
+
+# get the modules we need
+
+use Data::Dumper;
+use Geo::METAR;
+use LWP::UserAgent;
+use strict;
+
+my $ua = new LWP::UserAgent;
+
+my $req = new HTTP::Request GET =>
+  "http://weather.noaa.gov/cgi-bin/mgetmetar.pl?cccc=$site_code";
+
+my $response = $ua->request($req);
+
+	if (!$response->is_success) {
+	
+	print $response->error_as_HTML;
+	my $err_msg = $response->error_as_HTML;
+	warn "$err_msg\n\n";
+	die "$!";
+	
+	} else {
+	
+	my $m = new Geo::METAR;
+	$m->debug(0);
+	my $data;
+	$data = $response->as_string;               # grap response
+	$data =~ s/\n//go;                          # remove newlines
+	$data =~ m/($site_code\s\d+Z.*?)</go;       # find the METAR string
+	my $metar = $1;                             # keep it
+
+	if (length($metar)<10) {
+		die "METAR is too short! Something went wrong.";
+	}
+
+
+	$m->metar($metar);
+
+ 	my $c_temp = int($m->TEMP_C) ;
+
+
+	print "Current is $c_temp\n";
+	print "Set point is $threshold_temp\n";
+
+	if ($c_temp>$threshold_temp) {
+		print "\nIt's too hot outside";
+
+		my $fold_status = `/etc/init.d/FAHClient status`;
+		
+		print "status of $fold_status ";
+
+		if ( $fold_status =~/PID/) {
+			print "I need to DIE!!!";
+			
+			my $fold = `/etc/init.d/FAHClient stop`;
+			print "$fold";
+		} else {
+	
+			print "already turned off";
+
+		}
+		
+	} else {
+		print "\nI'm cold";
+		
+		my $fold_status = `/etc/init.d/FAHClient status`;
+                
+                print "status of $fold_status ";
+                
+		if ( $fold_status =~/not/i) {
+			print "warm me up baby!";
+			
+			my $fold = `/etc/init.d/FAHClient start`;
+                	print "$fold";
+		} else {
+			print "we're already heating the house";
+		}
+
+	}
+
+
+	}
+
+exit;
