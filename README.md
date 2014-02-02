@@ -12,3 +12,4 @@ TODO
 - Decrease logging
 - Output log to file or syslog
 - Fix offline status
+- Update for change to http://www.aviationweather.gov/adds/metars/
